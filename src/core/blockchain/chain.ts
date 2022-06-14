@@ -1,3 +1,4 @@
+import { DIFFICULTY_ADJUSTMENT_INTERVAL } from "@core/config";
 import { Block } from "./block";
 
 export class Chain {
@@ -21,7 +22,8 @@ export class Chain {
 
     public addBlock (data : string[]) : Failable<Block, string> {
         const previousBlock = this.getLatestBlock()
-        const newBlock = Block.generateBlock(previousBlock, data)
+        const adjustmentBlock : Block = this.getAdjustmentBlock()
+        const newBlock = Block.generateBlock(previousBlock, data, adjustmentBlock )
         const isValid = Block.isValidNewBlock(newBlock, previousBlock)
 
         if(isValid.isError === true) {
@@ -29,5 +31,15 @@ export class Chain {
         }
         this.blockchain.push(newBlock)
         return { isError : false, value : newBlock}
+    }
+
+    public getAdjustmentBlock() {
+        const currentLength = this.getLength()
+
+        const adjustmentBlock : Block =
+        currentLength < DIFFICULTY_ADJUSTMENT_INTERVAL
+        ? Block.getGenesis()
+        : this.blockchain [ currentLength - DIFFICULTY_ADJUSTMENT_INTERVAL + 1 ]
+        return adjustmentBlock
     }
 }

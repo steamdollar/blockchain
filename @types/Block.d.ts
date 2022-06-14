@@ -3,10 +3,14 @@ declare interface IBlockHeader {
     height : number
     timestamp : number
     previousHash : string
+
 }
+
 
 declare interface IBlock extends IBlockHeader {
     merkleRoot : string
     hash : string
     data : string[]
+    nonce : number
+    difficulty : number
 }
