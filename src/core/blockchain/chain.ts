@@ -27,9 +27,10 @@ export class Chain {
         const isValid = Block.isValidNewBlock(newBlock, previousBlock)
 
         if(isValid.isError === true) {
-            return { isError : true, error : isValid.error}
+            return { isError : true, error : isValid.error }
         }
         this.blockchain.push(newBlock)
+        
         return { isError : false, value : newBlock}
     }
 

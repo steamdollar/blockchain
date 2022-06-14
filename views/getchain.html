@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div id="wrap">
+        {% for item in result %}
+        <ul>
+            <li>{{item.version}}</li>
+            <li>{{item.timestamp}}</li>
+            <li>{{item.height}}</li>
+            <li>{{item.previousHash}}</li>
+            <li>{{item.merkleRoot}}</li>
+            <li>{{item.nonce}}</li>
+            <li>{{item.difficulty}}</li>
+            <li>{{item.hash}}</li>
+            <li>{{item.data}}</li>
+        </ul>
+        {% endfor %}
+    </div>
+
+
+
+</body>
+</html>

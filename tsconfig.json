@@ -1,16 +1,19 @@
 {
-    "compilerOptions": {
-      "outDir": "./dist/",
-      "esModuleInterop": true,
-      "moduleResolution": "node",
-      "resolveJsonModule": true,
-      "strict": true,
-      "baseUrl": ".",
-      "typeRoots": ["./node_modules/@types", "./@types"],
-      "paths": {
-        "@core/*": ["src/core/*"],
-        "*": ["@types/*"]
-      }
+  "compilerOptions": {
+    "outDir": "./dist/",
+    "esModuleInterop": true, // import React form 'react'
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "strict": true,
+    "baseUrl": ".",
+    "typeRoots": ["./node_modules/@types", "./@types"],
+    "paths": {
+      "@core/*": ["src/core/*"],
+      "*": ["@types/*"]
     }
+  },
+  "ts-node" : {
+    "files" : true,
+    "require": ["tsconfig-paths/register"]
   }
-  
+}

@@ -2,6 +2,7 @@ import { BlockHeader } from "./blockHeader";
 import { SHA256 } from 'crypto-js'
 import merkle from 'merkle'
 import { GENESIS, DIFFICULTY_ADJUSTMENT_INTERVAL, UNIT, BLOCK_GENERATION_INTERVAL } from "@core/config";
+import hexToBinary from 'hex-to-binary'
 
 export class Block extends BlockHeader implements IBlock {
     public hash : string
@@ -46,7 +47,21 @@ export class Block extends BlockHeader implements IBlock {
     }
 
     public static findBlock ( _generateBlock : Block ) : Block {
-        return _generateBlock
+        let hash : string
+        let nonce : number = 0
+        
+        while (true) {
+            nonce++
+            _generateBlock.nonce = nonce
+            hash = Block.createBlockHash(_generateBlock)
+
+            const binary : string = hexToBinary(hash)
+            const result : boolean = binary.startsWith('0'.repeat(_generateBlock.difficulty))
+            if(result == true) {
+                _generateBlock.hash = hash
+                return _generateBlock
+            } 
+        }
     }
 
     public static getDifficulty(_newBlock : Block, _adjustmentBlock : Block, _previousBlock : Block ) : number {

@@ -173,5 +173,151 @@ public static generateBlock(_previousBlock : Block, _data : string[], _adjustmen
 }
 
 
-2. websoccket을 이용한 다른 node와의 통신
+2. websoccket을 이용한 다른 node와의 통신 (chk3)
+
+이제 다른 node와 웹소켓을 ㅗㅌㅇ해 상호작용 하는 방법에 대해 알아보자.
+
+블록체인 네트워크에서는 블록체인에 대한 정보를 노드간에 주고 받고 하면서 수시로
+
+하나의 노드가 클라이언트인지, 서버인지가 바뀌는데 이 과정에 개입하는게 http, websocket이다.
+
+루트 디렉토리에서 index.ts 파일을 생성해 express를 이용한 서버를 우선 구동해보자.
+
+----------------------------
+npm i express @types/express
+----------------------------
+
+/* index.ts  */
+
+import express from 'express'
+
+const app = express()
+app.use(express.json())
+
+app.get('/'(req,res) => {
+    res.send('bitcoin is ponzi')
+})
+
+app.listen(3000, () => {
+    console.log( 'server run 3000' )
+})
+
+서버 구동이 문제가 없다면 
+
+우선 첫 번째로 로컬 영역에서 내가 만든 체인을 불러와 읽어보는 기능과
+
+직접 채굴 해보는 기능을 실행해보자.
+
+
+2.1 내 blockchain 가져와 읽기
+
+우선 루트 디렉토리의 index.ts에서 import할 blockchain을 실제로 만들어줘야한다.
+
+/*  src/core/index.ts  */
+
+import { Chain } from './blockchain/chain'
+
+export class Blockchain {
+    public chain : Chain
+
+    constructor () {
+        this.chain = new Chain()
+    }
+}
+
+// 새로 만든 BlockChain class는 전에 만든 Chain만을 속성으로 가진다.
+
+
+이제 루트 디렉토리의 index.ts에서 blockchain을 import해줘야한다.
+
+import { Blockchain } from './src/core/index'
+
+const bc = new BlockChain()
+
+app.get('/getChain', (req, res) => {
+    res.json(bc.chain.getChain())
+})
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! 여기서 존나 에러 터짐 씨발년아 !!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Error: Cannot find module '@core/config'
+
+import할 때 좀 편하게 경로 잡을수 있도록 해주는 라이브러리 설치, 셋업을 안해서 이 사단이 났다.
+
+npm i tsconfig-paths
+
+설치하고
+
+tsconfig.json에서  
+"ts-node" : {
+    "files": true,
+    "require" : ["tsconfig-paths/register"]
+}
+
+이렇게 하니까 됨..
+
+!!!!!!!!!!!!!!!!!!!
+
+이제 블럭을 생성하는 것도 해보자.
+
+2.2 블럭 생성
+
+app.post("/mineBlock", (req, res) => {
+    const { data } = req.body
+    const newBlock = bc.chain.addBlock(data)
+    if(newBlock.isError == true ) {
+        return res.status(500).send(newBlock.error)
+    }
+    res.send('done')
+})
+
+2.3 웹 소켓 활용
+
+npm i ws @types/ws
+
+src/serve/p2p.ts
+
+import { WebSocket } from 'ws'
+
+
+export class P2PServer {
+    listen () {
+        const server = new WebSocket.Server( { port :7545 })
+        server.on( 'connection', (socket) => {
+            console.log( 'websocket connection')
+        })
+    }
+
+    connectToPeer( newPeer : string ) {
+        const socket = new WebSocket(newPeer)
+    }
+}
+
+/*  index.ts  */
+
+import { P2PServer } from './src/serve/p2p'
+
+app.post('/addToPeer', (req, res) => {
+    const { peer } = req.body
+    ws.connectToPeer(peer)
+})
+
+// ...중략
+
+ws.listen()
+
+// 
+
+이렇게 하고 addToPeer URI에 post로 요청을 보내보자.
+
+req.body = { "peer":"ws://192.168.0.214:7545" }
+
+요청을 전송하면 서버에서
+
+ws.connectToPeer(peer) 함수가 발동하고
+
+매개변수 peer (ws 어쩌구 ip주소) 를 매개변수로 새로운 WebSocket class가 생성된다.
 
