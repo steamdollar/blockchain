@@ -321,3 +321,161 @@ ws.connectToPeer(peer) 함수가 발동하고
 
 매개변수 peer (ws 어쩌구 ip주소) 를 매개변수로 새로운 WebSocket class가 생성된다.
 
+//
+
+p2p.ts로 돌아와 P2PServer class를 수정한다.
+
+우선 sockets 속성을 추가하는데, 이 sockets는 WebSocket을 즉, 나와 현재 연결되어 있는 달느 노드들을
+
+원소로 가지는 배열이다.
+
+다른 노드와 내가 연결이 된다면
+
+> connection 에 의해 발동하는 콜백함수가 실행된다.
+
+> websocket connection이 출력되고, sockets 배열에 매개변수 socket이 (새로 연결된) 추가된다.
+
+> 그 후, connectSocket 함수가 실행되는데,
+
+이 connectSocket 함수도 아래에 추가해주어야 한다.
+
+connectSocket( socket : WebSocket ) {
+    //  this.soekcts.push(socket)
+    socket.on('message', (data : string) => {
+        console.log(Buffer.from(data).toString())
+    })
+    // 연결된 노드에서 메시지를 받을 경우 그 메시지를 해석해 출력한다.
+    socket.send('bitcoin is ponzi')
+    // 연결된 노드에 메시지를 보낸다.
+}
+
+이 과정은 나와 상대방에게서 동시에 일어나는 일이기 때문에 연결된느 순간 서로가 서로에게
+메시지를 주고 받는다.
+
+반대로 내가 상대방에게 연결하고 싶다면, 
+
+addToPeer URI에 post method로 요청을 보낸다.
+
+이때, body에 peer의 정보를 입력해 보내고,
+
+서버는 이를 매개변수로 삼아 connectToPeer 함수를 실행한다. (p2p.ts)
+
+그러면 newPeer를 매개 변수로 갖는 WebSocket 객체가 생성되고,
+
+socket이 open될때 발동하는 콜백함수로 connectSocket 함수가 실행된다.
+
+//
+
+이제 여기서 우리가 지금까지 한 일 =  블럭체인을 만드는 것을 조합해보면 된다.
+
+서로 다른 두 노드가 연결되었을 때,
+
+우선 각자의 블럭체인 길이가 어떤지에 따라 진행하는 일이 달라질 것이다.
+
+a)서로의 블록 체인 길이가 차이가 없을 경우 특별히 다른 일이 일어나진 않을 것이고,
+
+b)체인의 길이가 하나 차이가 날 경우, 체인 길이가 짧은 쪽이 긴 쪽에게 가장 최근의 블럭의
+
+정보를 요청해 검증을 거친 후, 자신의 체인에 추가해 블럭을 최신화 할 것이고,
+
+c) 체인의 길이차이가 더 클 경우, 전체 체인 데이터를 요구해 (혹은 충분히 긴 길이를 가진 체인의 최근 몇 개 블럭)
+
+이를 순차적으로 자신의 체인에 추가할 것이다.
+
+우선 Chain을 P2PServer 클래스에 가져온다.
+
+import { Chain } from '@core/blockchain/chain'
+
+export class P2PServer extends Chain // 이 줄을 수정하고
+
+super() < 를 constructor 함수에 추가
+
+각각의 경우에 따라 코드를 실행하기 용이하기 위해 리액트때 dispatch를 사용한 것처럼
+
+타입과 페이로드를 가진 메시지, 메시지타입 class를 생성해 활용할 것이다.
+
+P2PServer에 Chain 속성을 가져온다.
+
+enum MessageType {
+    latest_Block : 0
+}
+
+interface Message {
+    type : MessageType
+    payload : any
+}
+
+a,b,c 각각의 경우에 대해 Messagetype에서 다른 속성값을 정하고,
+
+(지금은 latest_block : 0 뿐이지만 계속 추가될 것이다)
+
+이를 Message로 전당해줌으로써 각 경우에 따른 실행 코드를 정할 것이다.
+
+//
+
+이제 클라이언트로부터 메시지를 잡았을 때 이를 우선 읽어야 체인 길이를 비교하는 등의 작업을 할 수 있으므로
+
+connectSocket 함수안의 'message' 수신시 발동하는 콜백 함수를 본격적으로 작성해주어야 한다.
+
+socket.on('message', (data : string) => {
+    const message : Message = P2PServer.dataParse<Message>(data)
+    // 데이터는 우선 JSON으로 바꾸는 작업이 선행되어야 한다.
+    // 이를 실행할 함수 dataparse는 connectSocket 함수 바깥에 작성해준다.
+})
+
+static dataParse<T> (_data : string) : T{
+    return JSON.parse(Buffer.from(_data).toString())
+}
+
+노드간 주고받는 data라는 매개변수 자체가 Message class임을 가정하고 있으므로
+
+이를 객체로 다시 만들면 이 또한 Message class에 속하는 객체일 것이다.
+
+이 객체의 type 속성값을 읽어 이에 따라 다른 코드를 실행하기 위해 다음과 같이 switch-case문을 작성할 것이다.
+
+우선 최신 블럭을 요청하는 코드를 작성해보자.
+
+switch (message.type) {
+    case MessageType.latest_block :
+        console.log(message)
+        break
+}
+const Block : IBlock = message.payload
+console.log(Block)
+
+const data : Message = {
+    type : MessageType.latest_block,
+    payload : this.getLatestBlock()
+}
+
+이렇게 메시지를 만들어 상대방에게 전송한다.
+( 가장 최근 블럭을 요청하는 코드 )
+
+socket.send(JSON.stringify(data))
+// data를 객체로 만들어 상대방 node에게 전송한다.
+const send = this.send(socket)
+send(data)
+// 여기서 변수 send는 '우리가 만든' socket, data를 매개변수로 갖는 고차함수이다.
+
+send 함수의 구체적 내용은 다음과 같다.
+
+send(_socket : WebSocket ) {
+    return (_data : Message) => {
+        _socket.send(JSON.stringify(_data))
+    }
+}
+
+보기엔 좀 헷갈리짐나 결국 상대방 node (socket)으로 내가 만든 data를 보내겠다는 말이다.
+
+코드 실행 순서에 주의해야하는데,
+
+내가 선언한 변수 data : Message는 connectSocket 함수 실행시 바로 실행되는 코드이고,
+
+switch case문을 포함한 코드문은 상대방으로부터 메시지를 받은 시점에서 실행된다.
+
+즉 data를 지정된 socket으로 보내는 함수가 먼저 실행된다.
+
+그 후, 상대방 소켓 쪽에서 응답을 주면 그 때 메시지 수신을 트리거로 발동하는 콜백함수가 발동한다.
+
+//
+
