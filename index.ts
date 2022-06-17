@@ -36,7 +36,7 @@ app.post("/mineBlock", (req, res) => {
     if(newBlock.isError == true ) {
         return res.status(500).send(newBlock.error)
     }
-    res.send('done')
+    res.send(newBlock.value)
 })
 //
 
@@ -47,6 +47,6 @@ app.post('/addToPeer', (req, res) => {
 
 app.listen(3000, () => {
     console.log('server run 3000')
+    ws.listen()
 })
 
-ws.listen()

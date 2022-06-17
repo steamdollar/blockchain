@@ -291,6 +291,10 @@ export class P2PServer {
         })
     }
 
+    getSockets() {
+        return this.sockets
+    }
+
     connectToPeer( newPeer : string ) {
         const socket = new WebSocket(newPeer)
     }
@@ -382,6 +386,10 @@ c) 체인의 길이차이가 더 클 경우, 전체 체인 데이터를 요구�
 
 이를 순차적으로 자신의 체인에 추가할 것이다.
 
+
+
+
+
 우선 Chain을 P2PServer 클래스에 가져온다.
 
 import { Chain } from '@core/blockchain/chain'
@@ -418,7 +426,7 @@ a,b,c 각각의 경우에 대해 Messagetype에서 다른 속성값을 정하고
 connectSocket 함수안의 'message' 수신시 발동하는 콜백 함수를 본격적으로 작성해주어야 한다.
 
 socket.on('message', (data : string) => {
-    const message : Message = P2PServer.dataParse<Message>(data)
+    const result : Message = P2PServer.dataParse<Message>(data)
     // 데이터는 우선 JSON으로 바꾸는 작업이 선행되어야 한다.
     // 이를 실행할 함수 dataparse는 connectSocket 함수 바깥에 작성해준다.
 })
@@ -435,7 +443,9 @@ static dataParse<T> (_data : string) : T{
 
 우선 최신 블럭을 요청하는 코드를 작성해보자.
 
-switch (message.type) {
+어찌됫든 최근 블럭에 대한 정보는 무조건 필요하므로..
+
+switch (result.type) {
     case MessageType.latest_block :
         console.log(message)
         break
@@ -445,14 +455,16 @@ console.log(Block)
 
 const data : Message = {
     type : MessageType.latest_block,
-    payload : this.getLatestBlock()
+    payload : {}
 }
 
 이렇게 메시지를 만들어 상대방에게 전송한다.
 ( 가장 최근 블럭을 요청하는 코드 )
 
-socket.send(JSON.stringify(data))
-// data를 객체로 만들어 상대방 node에게 전송한다.
+<!-- socket.send(JSON.stringify(data))
+// data를 객체로 만들어 상대방 node에게 전송한다. -->
+> 이 코드가 필요한지 모르겠음
+
 const send = this.send(socket)
 send(data)
 // 여기서 변수 send는 '우리가 만든' socket, data를 매개변수로 갖는 고차함수이다.
@@ -467,6 +479,11 @@ send(_socket : WebSocket ) {
 
 보기엔 좀 헷갈리짐나 결국 상대방 node (socket)으로 내가 만든 data를 보내겠다는 말이다.
 
+조금 간단하게 쓰면 다음과 같다
+
+this.send(socket)(data)
+
+
 코드 실행 순서에 주의해야하는데,
 
 내가 선언한 변수 data : Message는 connectSocket 함수 실행시 바로 실행되는 코드이고,
@@ -478,4 +495,226 @@ switch case문을 포함한 코드문은 상대방으로부터 메시지를 받�
 그 후, 상대방 소켓 쪽에서 응답을 주면 그 때 메시지 수신을 트리거로 발동하는 콜백함수가 발동한다.
 
 //
+
+메시지 수신시 발동하는 함수를 따로 분리해준다. 명칭은 messageHandler
+
+messageHandler ( socket : WebSocket ) {
+    const callback = ( data : string ) => {
+        const message : Message = P2PServer.dataParse<Message>(data)
+        const send = this.send(socket)
+
+        switch(result.type) {
+            case MessageType.latest_Block : {
+                const message : Message : {
+                    type : 1,
+                    payload : [this.getLatestBlock()]
+                }
+                send(message)
+                break
+            }
+        }
+    }
+    socket.on('message', callback)
+}
+
+다시 정리하자면 다른 노드와 연결이 되면
+
+> 'connection' > 콜백 함수 발동
+
+> 그 안에서 connectSocket 함수 발동
+
+> connectSocket 함수가 발동되는 즉시 data 변수가 선언되서
+
+> 연결된 node에 send함수를 통해 메시지 전송
+
+> 이때 data : Message의 type은 latest_block이므로 상대방에게 최근 블럭에 관한 정보 요청
+
+> 상대방 또한 동일한 코드가 실행되고 있으므로 메시지 수신에 반응해 발동하는 messageHandler 실행
+
+( messageHandler 함수 최하단의 socket.on('message', callback) 이 이거임)
+
+> result.type (최초엔 latest_block 타입) 을 보고 맞는 응답을 전송
+
+//
+
+이제 다른 case에 대한 실행 코드를 작성해준다.
+
+enum MessageType {
+    latest_block : 0,
+    all_block = 1,
+    receivedChain = 2
+}
+// 메시지 타입에 all_block, receivedChain을 추가해주고,
+
+switch-case문에 다음 두개 case를 추가한다.
+
+case MessageType.all_block : {
+    const message : Message = {
+        type : MessageType.receivedChain,
+        payload : this.getChain()
+    }
+}
+
+case MessageType.receivedChain : {
+    const receivedChain : IBlock [] = message.payload
+    console.log(receiveChain)
+    break
+}
+
+// 
+
+연결된 소켓들을 불러오는 getSockets 함수 추가
+
+getSockets() {
+    return this.sockets
+}
+
+//
+
+이제 전체 체인을 요청하는 case에 대한 함수를 작성해보자.
+
+내가 가지고 있는 체인과 받은 체인의 최근 블럭을 비교해
+
+내 hash와 상대방의 previousHash를 비교한다.
+
+이 때 두 값이 같다면 나와 상대방의 체인 길이 차이는 1이라는 말이된다. (상대방이 1 더 길다)
+
+이 경우, 상대방의 최신 블럭을 내 체인에 추가한다. (검증을 거쳐서 )
+
+다른 node에서 받은 초신 블럭을 검증하는 코드를 역시 추가해주어야 하는데, 이는 chain class에 추가한다.
+
+/*  chain.ts  */
+
+    public addToChain ( _receivedBlock : Block ) : Failable < undefined, string > {
+        const isValid = Block.isValidNewBlock(_receivedBlock, this.getLatestBlock())
+        // 검증함수 실행후 결과 객체를 isValid 변수에 투입
+
+        if (isValid.isError) {
+            return { isError : true, error : isValid.error}
+        }
+        // 에러가 있다면 이 조건문 실행
+
+        this.blockchain.push(_receivedBlock)  
+        return { isError : false, value : undefined}
+         // 에러가 없다면 받은 블럭을 내 블럭체인에 추가후 결과 객체 리턴
+    }
+
+
+이 함수를 all_block case에서 호출한 후 결과값(객체)를 isValid에 담는다.
+
+에러가 없다면 여기서 블록체인을 업데이트 하고 종료되지만,
+
+어떤 이유가 인해 에러가 있을 경우 (isError 가 true일 경우 = 검증을 통과하지 못한 경우)
+
+다시 상대방의 전체 블록 체인을 요청하는 코드를 담아 Message를 전송한다.
+
+case MessageType.receivedChain : {
+    const receivedChain : IBlock [] = result.payload
+    // Block 내부의 함수는 필요 없이 블럭 내용만 알고 싶으므로 IBlock 형탤르 가져온다.
+    this.handleChainResponse(receivedChain)
+    // 상대방의 전체 블럭체인 정보를 요청하는 함수를 하단에 작성한다.
+    break
+}
+
+/*  p2p.ts  */
+
+handleChainResponse(receivedChain:IBlock[]) : Failable < Message | undefined, string > {
+    const isValidChain = this.isValidChain(receivedChain)
+    // 받은 상대방의 전체 블럭체인이 문제가 없는 블럭체인인지 우선 검증
+    // 이 검증함수는 block에 있는 그 검증 항목과는 다르다.
+    // isValidChain 함수는 chain.ts에 넣느다.
+
+    if( isValidChain.isError ) {
+        return { isError : true, error : isValid.error }
+    }
+    // 만약 혹시 여기서 에러가 있다? 더 볼 필요 없다. 에러를 리턴
+    // 상대방의 블럭체인 자체에 에러가 없을 경우에만 추가적인 행동을 실시
+
+    
+    const isValid = this.replaceChain(receivedChain)
+    is (isValid.isError) {
+        return { isError : true, error : isValid.error }
+    }
+
+}
+
+/*  chain.ts  */
+
+public isValidChain(_chain: Block[]) : Failable < undefined, string > {
+    const genesis = _chain[0]
+    // 상대에게서 받은 체인의 첫 번째 블럭
+
+    for ( let i = 1; i < _chain.length; i++ ) {
+        const newBlock = _chain[i]
+        const previousBlock = _chain[i-1]
+        const isValid = Block.isValidNewBlock(newBlock, previousBlock)
+        if(isValid.isError) {
+            return { isError : true, error : isValid.error }
+        }
+    }
+    // 각 블럭간 연결이 잘 되어 있는지 확인.
+    // 하나라도 에러가 있다면 그 즉시 리턴
+    return { isError : false, value : undefined }
+}
+
+/*  chain.ts  */
+
+위 과정  (isValidChain의 검증 과정) 을 통과했다면 replacChain 함수를 실행한다.
+
+이 함수는 내가 가진 블럭체인을 상대방의 블럭체인으로 통으로 교체를 할지 여부를
+
+추가적인 검증을 통해 결정한다.
+
+/*  chain.ts  */
+
+replaceChain( receivedChain : Block[]) : Failable < undefined, string > {
+    const latestReceivedBlock : Block = receivedChain[receivedChain.length - 1]
+    const latestBlock : Block = this.getLatestBlock()
+
+    if ( latestReceivedBlock.height === 0 ) {
+        return { isError : true, error : 'this guy's block is genesis' }
+    }
+
+    if ( latestReceivedBlock.previousBlock === latestBlock.hash ) {
+        return { isError : true, error : 'my chain is one block short'}
+    }
+    if ( latestBlock.height <= latestBlock.height ) {
+        return { isError : true, error : 'my chain is longer' }
+    }
+
+    this.blockchain = receivedChain
+    return { isError : false, value : undefined }
+}
+
+
+체인을 최신화했다면 이를 네트워크 다른 노드들에게 전해준다. (broadcast)
+
+p2p.ts/handleChainResponse 함수에 다음과 같이 추가한다.
+
+    const message : Message = {
+        type : Message.receivedChain,
+        payload : receivedChain
+    }
+
+    this.broadCast(message)
+    return { isError : false, value : undefined 
+}
+
+public broadCast ( message :Message ) : void {
+    this.sockets.forEach((socket) => this.send(socket)(message))
+}
+
+//
+
+마지막으로 연결된 네트워크의 누군가가 통신을 종료할 경우 이를 sockets 배열에서 제거하는 
+
+errorHandler 함수를 connectSocket 함수에 추가해주면 된다.
+
+errorHandler(socket : WebSocket) {
+    const close = () => {
+        this.sockets.splice(this.sockets.indexOf(socket), 1)
+    }
+    socket.on('close', close)
+    socket.on('error', close)
+}
 
