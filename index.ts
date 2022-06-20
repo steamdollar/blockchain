@@ -11,6 +11,20 @@ const ws = new P2PServer()
 
 app.use(express.json())
 
+app.use((req,res,next) => {
+    const baseAuth : string = (req.headers.authorization || '').split(' ')[1]
+    if(baseAuth === '') {
+        return res.status(401).send()
+    }
+
+    const [userid, userpw] = Buffer.from(baseAuth, 'base64').toString().split(':')
+    if(userid !== 'lsj' || userpw !== '1234') {
+        return res.status(401).send()
+    }
+    console.log(userid, userpw)
+    next()
+})
+
 app.set('view engine','html')
 nunjucks.configure('views', {
   express:app,

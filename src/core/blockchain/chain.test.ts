@@ -18,7 +18,7 @@ describe('Chain function Check', () => {
     // })
 
     it('addBlock() check', () => {
-        for (let i = 1; i <=30; i++ ) {
+        for (let i = 1; i <=2; i++ ) {
             node.addBlock([`Block #${i}`])
         }
         console.log(node.getChain())

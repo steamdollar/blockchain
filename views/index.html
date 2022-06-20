@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <title>Document</title>
+</head>
+<body>
+    <h1>Wallet Practice</h1>
+
+    <button id="Wallet_btn">지갑 생성</button>
+
+    <ul id="wallet_list">
+        <li> Coin : ingCoin </li>
+        <li> account :
+            <span class="account"></span>
+        </li>
+        <li> private key :
+            <span class="privateKey"></span>
+        </li>
+        <li> public key :
+            <span class="publicKey"></span>
+        </li>
+        <li> balance :
+            <span class="balance"></span>
+        </li>
+    </ul>
+
+    <h1>Transaction</h1>
+    <form id="transaction_form">
+        <ul>
+            <li>
+                To: <input id="to"/>
+            </li>
+            <li>
+                From: <input id="from"/>
+            </li>
+            <li>
+                Value: <input id="value"/>
+            </li>
+        </ul>
+        <input type="submit" value="submit"/>
+    </form>
+
+    <script type="text/javascript">
+        const walletBtn = document.querySelector('#Wallet_btn')
+
+        const createWallet = async () => {
+            const response = await axios.post('/newWallet', null )
+            console.log(response.data)
+        }
+
+        walletBtn.addEventListener('click', createWallet)
+
+        //
+
+        // const transactionForm = document.querySelector('#transaction_form')
+
+        // const submitHandler = async (e) => {
+        //     e.preventDefault()
+        //     console.log(e.target.to.value)
+        //     console.log(e.target.from.value)
+        //     console.log(e.target.value.value)
+        // }
+
+        // //
+
+        
+        // transactionForm.addEventListener('submit', submitHandler)
+
+    </script>
+</body>
+</html>

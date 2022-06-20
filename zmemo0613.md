@@ -717,4 +717,3 @@ errorHandler(socket : WebSocket) {
     socket.on('close', close)
     socket.on('error', close)
 }
-
