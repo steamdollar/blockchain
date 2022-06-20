@@ -3,8 +3,8 @@ import { Chain } from '@core/blockchain/chain'
 
 enum MessageType {
     latest_block = 0,
-    all_block = 1,
-    receivedChain = 2
+    received_latest_block = 1,
+    fullChainReq = 2
 }
 
 interface Message {
@@ -44,7 +44,7 @@ export class P2PServer extends Chain {
 
     connectSocket( socket : WebSocket ) {
         this.sockets.push(socket)
-
+        this.errorHandler(socket)
         this.messageHandler(socket)
 
         const data : Message = {
@@ -52,10 +52,11 @@ export class P2PServer extends Chain {
             payload : {}
         }
         this.send(socket)(data)
+
     }
 
     messageHandler ( socket : WebSocket ) {
-        const callback = (data : string) => {
+        const messageResponse = (data : string) => {
             const result : Message = P2PServer.dataParse<Message>(data)
             const send = this.send(socket)
 
@@ -69,23 +70,26 @@ export class P2PServer extends Chain {
                     send(message)
                     break
                 }
-                case MessageType.all_block : {
-                    const message : Message = {
-                        type : MessageType.receivedChain,
-                        payload : this.getChain()
-                    }
+                case MessageType.received_latest_block : {
+
 
                     const [ receivedBlock ] = result.payload
                     const isValid = this.addToChain(receivedBlock)
 
                     if(!isValid.isError ) break
                     // 에러가 없다면 여기서 종료
+
+                    const message : Message = {
+                        type : MessageType.fullChainReq,
+                        payload : this.getChain()
+                    }
+
                     send(message)
                     // 에러가 있다면 다음 케이스 코드를 실행할 message.type을 담아 다시 메시지 전송
                     break
                 }
                 
-                case MessageType.receivedChain : {
+                case MessageType.fullChainReq : {
                     const receivedChain : IBlock [] = result.payload
                     // Block 내부의 함수는 필요 없이 블럭 내용만 알고 싶으므로 IBlock 형탤르 가져온다.
                     this.handleChainResponse(receivedChain)
@@ -94,10 +98,11 @@ export class P2PServer extends Chain {
                 }
             }
         }
-        socket.on('message', callback)
+        socket.on('message', messageResponse)
     }
 
-    handleChainResponse (_receivedChain:IBlock[]) : Failable <Message | undefined, string> {
+
+    public handleChainResponse (_receivedChain:IBlock[]) : Failable <Message | undefined, string> {
         const isValidChain = this.isValidChain(_receivedChain)
         // 전달받은 체인을 검증
         if(isValidChain.isError) {
@@ -112,7 +117,7 @@ export class P2PServer extends Chain {
         }
 
         const message : Message = {
-            type : MessageType.receivedChain,
+            type : MessageType.fullChainReq,
             payload : _receivedChain
         }
         // replaceChain 함수에서 에러가 날 경우 에러 리턴
@@ -133,4 +138,14 @@ export class P2PServer extends Chain {
     static dataParse<T>(_data : string) : T {
         return JSON.parse(Buffer.from(_data).toString())
     }
+
+    public errorHandler (socket : WebSocket) {
+        const close = () => {
+            this.sockets.splice(this.sockets.indexOf(socket), 1)
+        }
+
+        socket.on('close', close)
+        socket.on('error', close)
+    }
+
 }
