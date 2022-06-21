@@ -509,3 +509,56 @@ app.post('/sendTransaction', (req, res) => {
 
 // 잘 되는지 확인
 
+
+////////////////////////////
+
+06/21
+
+tx : transaction
+
+개발 쪽에선 블록체인 아니라도 이 단어를 많이 사용한다. Db에도 쓰고 등등..
+
+한 지갑의 잔액을 계산하기 위해서는 잔액 + 입금 - 출금 액수를 계속 갱신하면 된다.
+
+잔액 : UTXO ( unspent transaction output ), 입금, 출금 : transaction
+
+B가 A 에게 입금하는 상황에서
+
+B 입장에선 출금, A 입장에선 입금
+
+ITxOut.address : A // 출금주소 : A
+amount : 1000 
+
+//
+
+최초의 입금 = 채굴 보상은 입금자 주소가 없다.
+
+이런 내용들을 객체로 표현을 해보자.
+
+unspent된 BTC 정보만을 담는 객체가 utxo
+
+이 utxo를 이용해 잔액을 조회할 수 있다.
+
+사용하면 utxo에서 제거
+
+interface unSpentTxOuts {
+    txOutID : string
+    txOutIndex : number
+    address : string
+    amount : number
+}
+
+tx를 위해서는 먼저 utxo의 hash를 찾아보고 이걸 참조해 txin을 만든다.
+
+50BTC가 처음에 unspent에 있다가 누군가에게 0.1BTC를 보내면
+
+50BTC는 사라지고 새로운 49.9BTC, 0.1BTC가 생김
+
+//
+
+실제 Tx를 구현해보자.
+
+일단 채굴 보상을 먼저 구현해야 한다.
+
+이 채굴 보상 (이하 코인 베이스)는 예외적으로 input 정보가 없다.
+
