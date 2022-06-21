@@ -1,9 +1,11 @@
 import { BlockChain } from './src/core/index'
 import { P2PServer } from './src/serve/p2p'
 import express from 'express'
+import axios from 'axios'
+
+import { Wallet, ReceivedTx } from '@core/wallet/wallet' 
 
 const nunjucks = require('nunjucks')
-
 
 const app = express()
 const bc = new BlockChain()
@@ -28,7 +30,6 @@ app.use((req,res,next) => {
 app.set('view engine','html')
 nunjucks.configure('views', {
   express:app,
-  watch:true
 })
 
 app.get('/', (req, res) => {
@@ -57,6 +58,17 @@ app.post("/mineBlock", (req, res) => {
 app.post('/addToPeer', (req, res) => {
     const { peer } = req.body
     ws.connectToPeer(peer)
+})
+
+app.post('/sendTransaction', (req, res) => {
+    try {
+        const receivedTx : ReceivedTx = req.body
+        Wallet.sendTransaction(receivedTx)
+    }
+    catch (e) {
+        if ( e instanceof Error ) console.error(e.message)
+    }
+    res.json([])
 })
 
 app.listen(3000, () => {

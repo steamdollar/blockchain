@@ -27,11 +27,12 @@ describe('wallet study', () => {
         const hash = SHA256('txhash').toString()
 
         signature = keyPair.sign(hash, 'hex')
+        //
     })
 
     it('sig verify', () => {
         const hash = SHA256('txhash').toString() // 얘도 해시화 해줘야 함
-        const verify = ec.verify(hash, signature, ec.keyFromPublic(pubKey, 'hex'))
+        const verify : boolean = ec.verify(hash, signature, ec.keyFromPublic(pubKey, 'hex'))
         // hash, 공개키를 알아야 true가 나온다.
         console.log(verify) // true
     })

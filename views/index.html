@@ -29,21 +29,27 @@
         </li>
     </ul>
 
-    <h1>Transaction</h1>
+    <h1> TX 정보 </h1>
+
     <form id="transaction_form">
         <ul>
             <li>
-                To: <input id="to"/>
+                receiver : <input id="receiver" placeholder="받을 사람"/>
             </li>
             <li>
-                From: <input id="from"/>
-            </li>
-            <li>
-                Value: <input id="value"/>
+                amount : <input id="amount" placeholder="보낼 금액"/>
             </li>
         </ul>
-        <input type="submit" value="submit"/>
+        <input type="submit" value='전송'/>
     </form>
+
+    <h1>wallet list</h1>
+    <button id="wallet_list_btn">지갑 목록 버튼</button>
+    <div class="wallet_list2">
+        <ul>
+
+        </ul>
+    </div>
 
     <script type="text/javascript">
         const walletBtn = document.querySelector('#Wallet_btn')
@@ -57,19 +63,64 @@
 
         //
 
-        // const transactionForm = document.querySelector('#transaction_form')
+        const walletListBtn = document.querySelector('#wallet_list_btn')
 
-        // const submitHandler = async (e) => {
-        //     e.preventDefault()
-        //     console.log(e.target.to.value)
-        //     console.log(e.target.from.value)
-        //     console.log(e.target.value.value)
-        // }
+        const getWalletList = async() => {
+            const walletList = document.querySelector('.wallet_list2 > ul')
+            const response = await axios.post('/walletList', null)
 
-        // //
+            const list = response.data.map((account) => {
+                return `<li onClick="getView('${account}')">${account}</li>`
+            })
 
-        
-        // transactionForm.addEventListener('submit', submitHandler)
+            walletList.innerHTML = list
+        }
+
+        walletListBtn.addEventListener('click', getWalletList)
+
+        //
+
+        const getView = async (wallet) => {
+            const response = await axios.get(`/wallet/${wallet}`)
+            console.log(response.data)
+            view(response.data)
+        }
+
+        const view = (wallet) => {
+            const account = document.querySelector('.account')
+            const publicKey = document.querySelector('.publicKey')
+            const privateKey = document.querySelector('.privateKey')
+            const balance = document.querySelector('.balance')
+
+            account.innerHTML = wallet.account
+            publicKey.innerHTML = wallet.publicKey
+            privateKey.innerHTML = wallet.privateKey
+            balance.innerHTML = wallet.balance
+        }
+
+        // 지갑 정보 요청해 받아와서 렌더링
+
+        const transactionForm = document.querySelector('#transaction_form')
+
+        const submitHandler = async (e) => {
+            e.preventDefault()
+
+            const publicKey = document.querySelector('.publicKey').innerHTML
+            const account = document.querySelector('.account').innerHTML
+
+            const data = {
+                sender : {
+                    publicKey,
+                    account
+                },
+                receiver : e.target.receiver.value,
+                amount : parseInt(e.target.amount.value)
+            }
+            console.log(data)
+            const response = await axios.post('/sendTransaction', data)
+        }
+
+        transactionForm.addEventListener('submit', submitHandler)
 
     </script>
 </body>
