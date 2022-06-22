@@ -6,12 +6,12 @@ import hexToBinary from 'hex-to-binary'
 
 export class Block extends BlockHeader implements IBlock {
     public hash : string
-    public data : string[]
+    public data : ITransaction[]
     public merkleRoot : string
     public difficulty : number
     public nonce : number
 
-    constructor( _previousBlock : Block, _data : string[], _adjustmentBlock : Block ) {
+    constructor( _previousBlock : Block, _data : ITransaction[], _adjustmentBlock : Block ) {
         super(_previousBlock)
 
         const merkleRoot = Block.getMerkleRoot(_data)
@@ -27,7 +27,6 @@ export class Block extends BlockHeader implements IBlock {
         return GENESIS
     }
 
-
     public static getMerkleRoot<T>(_data : T[]):string {
         const merkleTree = merkle("sha256").sync(_data)
         return merkleTree.root() || '0'.repeat(64)
@@ -39,7 +38,7 @@ export class Block extends BlockHeader implements IBlock {
         return SHA256(values).toString()
     }
 
-    public static generateBlock ( _previousBlock : Block, _data : string[], _adjustmentBlock : Block ): Block {
+    public static generateBlock ( _previousBlock : Block, _data : ITransaction[], _adjustmentBlock : Block ): Block {
         const generateBlock = new Block ( _previousBlock, _data, _adjustmentBlock)
         const newBlock = Block.findBlock(generateBlock)
 

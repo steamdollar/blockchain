@@ -7,7 +7,7 @@ describe('Block 검증', () => {
 
     
     it('블록생성', () => {
-        const data = ['Block #2']
+        const data : ITransaction[] = []
 
         newBlock = Block.generateBlock(GENESIS, data, GENESIS)
         const newBlock2 = new Block(newBlock, data, GENESIS)

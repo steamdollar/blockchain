@@ -562,3 +562,287 @@ tx를 위해서는 먼저 utxo의 hash를 찾아보고 이걸 참조해 txin을 
 
 이 채굴 보상 (이하 코인 베이스)는 예외적으로 input 정보가 없다.
 
+//
+
+src/core/transaction 폴더를 만들고 tx, txin, txout, utxo ts 파일을 생성한다.
+
+txin.ts, txout.ts 먼저 시작해보자.
+
+이 둘은 transaction.ts 에서 transaction class를 만드는데 사용된다.
+
+transaction에서는 TxIn, TxOut을 가져다 트렌젝션 hash를 만든다.
+
+import { SHA256 } from "crypto-js"
+import { TxIn } from "./txin"
+import { TxOut } from "./txout"
+
+
+export class Transaction {
+    public hash : string
+    public txIns : TxIn[]
+    public txOuts : TxOuts[]
+
+    constructor ( _txIns : TxIn[], _txOuts : TxOut[] ) {
+        this.txIns = _txIns
+        this.txOuts = _txOuts
+        this.hash = this.createTransactionHash()
+        // 여기서의 hash는 'tx'의 고유한 값이며, txin, txout의 내용을 전부 string으로 이어붙여 만든다
+    }
+
+    createTransactionHash() : string {
+        const txoutContent : string = this.txOuts.map( v=> Object.values(v).join('')).join('')
+        // txOutid, txOutInedx, signature를 문자로 한줄로 이어서 그 것들을 이음
+        const txinContent : string = this.txOuts.map( v=> Object.values(v).join('')).join('')
+
+        console.log(txoutContent, txinContent)
+        return SHA256(txoutContent + txinContent).toString()
+    }
+}
+
+//
+
+unspentTxOut.ts 에서 unspentTxOut class 객체를 생성한다.
+
+이것도 마찬가지로 transaction class 에서 가져와줄텐데
+
+transaction.ts에서 unspentTxOut에 관련한 정보도 조정해주면 편하다.
+
+transaction.ts / createUTXO 함수를 생성해준다.
+
+//
+
+만들어진 transaction 관련된 class들을 전역 변수로 선언해주자.
+
+/*  @types/transaction.d.ts  */
+
+declare interface ITxOut {
+    account : string
+    amount : number
+}
+// 입금 정보
+
+declare interface ITxIn {
+    txOutId : string
+    txOutIndex : number
+    signature : string | undefined
+}
+출금 정보
+
+declare interface ITransaction {
+    hash : string
+    txOuts : ITxOut[]
+    txIns : ITxIn[]
+}
+// 입금, 출금 정보를 가진 객체들을 모은 transaction 객체에 대한 정보
+
+declare interface IUnspentTxOut {
+    txOutId : string
+    txOutIndex : number
+    account : string
+    amount : number
+}
+// utxo
+
+// --Block, chain class의 수정
+
+다음으로 block class와 chain class에 transaction에 대한 정보들을 넣어줘야 한다.
+
+
+지금까지는 Block , chain Class 에서 data에 대한 정보를 그냥 문자열 하나만을 넣었지만
+
+이제부터는 실제 블럭체인이 동작하는 것처럼 트렌젝션에 대한 정보들을 배열로 담도록 변경해주어야 한다.
+
+Block.d.ts 에서 IBlock의 data 항목의 데이터 타입을 ITransaction[] 으로 수정한다.
+
+이렇게 되면 그간 data에 string을 쓰던 곳에서 전부 에러를 보여줄텐데, 이것도 수정해주면 된다.
+
+config.ts 의 제네시스 블록은 빈 배열을 주고,
+
+block.ts, block.test.ts 는 데이터 타입과 함수들의 매개 변수에 들어가는 _data의 데이터 타입을 바꿔준다.
+
+chain.ts의 addBlock 함수의 data 매개변수, 
+
+chain.test.ts의 addblock 함수의 매개변수를 빈 배열로 바꿔주면 대충 해결 될 것이다.
+
+다 수정 후, npx jest로 테스트를 진행해 에러가 없는지 확인하고 넘어가자.
+
+//
+
+다음으로 merkleRoot를 구하는 함수 getMerkleRoot를 수정해보자.
+ 수정 안 했는데..? 왜 쓴거지 이거?
+
+// --채굴 보상에 대한 트랜젝션 구현
+
+채굴 보상에 대한 tx를 추가하는 것으로 시작을 하는데,
+
+채굴 보상에 대한 tx는 다른 tx와는 달리 output 값이 없으며,
+
+해당 블록의 첫 tx가 된다. 이를 코인 베이스라고 부른다.
+
+이 채굴자에게 채굴 보상을 주는 기능을 가진 함수 miningBlock () 을 chain class 안에 구현해보자.
+
+우선 채굴자에게 블럭 당 코인 몇 개를 줄지 그 갯수를 config.ts에 추가한다.
+
+/*  src/config.ts  */
+
+export const MINING_COMPENSATION : number = 17
+
+채굴자에게 보상을 주는 시점은 블럭을 생성해, 그 블럭이 블록체인이 추가되는 시점이다.
+
+즉, addBlock 함수가 에러 없이 실행이 완료된 시점이어야 하는데,
+
+addBlock 함수를 수정하기보다는 miningBlock 함수를 따로 만들고, 이 함수를
+
+addBlock 함수에서 실행하는 것이 효율이 좋다.
+
+이는 잠시 후에 구체적으로 코딩하기로 하고, 우선 새로 생성된 utxo를 먼저 처리해보자.
+
+
+채굴자에게 보상을 줌으로써 새로 생성된 utxo 또한 블럭체인 상에 저장되어야 네트워크의
+
+모두에게 그 돈이 해당 채굴자에게 지급되었음을 지급할 수 있다.
+
+따라서 다음으로 할 일은 chain에 utxo 관련 값과 함수를 추가해주는 일이다.
+
+/*  src/core/blockchain/chain.ts  */
+
+import { unspentTxOut } from "@core/transaction/unspentTxOut";
+
+private unspentTxOuts : unspentTxOut[] // 속성값 하나 추가
+
+public getunspentTxOuts() : unspentTxOut[] {
+    return this.unspentTxOuts
+    // 블록 체인 상의 utxo를 가져온다.
+}
+
+public appendUTXO (utxo : unspentTxOut[] ) : void {
+    this.unspentTxOuts.push(...utxo)
+    // 새로 생긴 utxo를 기존 utxo에 추가한다
+}
+
+이 두 함수를 채굴자 보상에 대한 함수에서 호출하면 채굴자에게 보상이 지급되는 기능을
+
+구현할 수 있다.
+
+/*  src/core/blockchain/chain.ts  */
+
+public miningBlock (_account : string) {
+    const txin : ITxIn = new TxIn('', this.getLatestBlock().height + 1)
+    // 채굴자 보상 트랜젝션은 주는 사람이 없으므로 서명도 없다
+    // 따라서 여기서 TxIn class 객체를 새로 생성할 때의 생성자 함수의 매개 변수는 2개만 있다.
+    // 출금을 하는 사람도 없으므로 첫 번째 매개변수도 공란이며, txOutIndex만이 값을 가진다.
+    // 이 블럭의 높이값은 나중에 hash를 만들때 사용한다.
+    const txout : ITxOut = new TxOut(_account, MINING_COMPENSATION)
+    // 채굴자 지갑 주소로 MINING_COMPENSATION 만큼의 코인을 준다
+    const transaction : Transaction = new Transaction( [txin], [txout])
+    // 트랜잭션 객체를 생성한다
+    const utxo = transaction.createUTXO()
+    // 채굴자에게 지급된 코인에 대한 utxo를 만든다.
+
+    this.appendUTXO(utxo)
+    // 우선 채굴자 보상을 utxo에 추가한 후, addBlock 함수를 실행해 블럭을 붙인다.
+    return this.addBlock([transaction])
+}
+
+//
+
+
+이제 index.ts로 가서 /mineBlock 라우터의 미들웨어에 이를 추가해주어야 한다.
+
+해당 라우터에서 실행되는 함수는 addBlock이 아닌 miningBlock이 된다.
+
+/*  index.ts  */
+
+app.post('/mineBlock', (req, res) => {
+    const { data } = req.body
+    const newBlock = ws.miningBlock(data)
+    if(newBlock.isError == true) {
+        return res.status(500).send(newBlock.error)
+    }
+    const msg: Message = {
+        type:MessageType.latest_block,
+        payload:{}
+    }
+    ws.broadcast(msg)
+    res.json(newBlock.value)
+})
+
+//
+
+이제 채굴에 대한 보상이 잘 들어왔는지 확인을 해보자.
+
+wallet class에 지갑 주소를 입력하면 그 지갑의 utxo (잔고)를 리턴해주는 함수 getBalance를 추가한다.
+
+/*  src/core/wallet/wallet.ts  */
+
+static getBalance(_account : string, _unspentTxOuts : IUnspentTxOut[]) : number {
+
+    return _unspentTxOuts
+    .filter( v=> {
+        return (v.account == _account)
+    })
+    // utxo중 내 지갑주소의 utxo만 가져온다.
+    .reduce((acc,utxo) => {
+        return (acc += utxo.amount)
+    },0)
+    // 가져온 utxo를 전부 더한다.
+}
+
+테스트 코드에서 miningBlock을 몇 번 실행 한 후,
+
+getBalance 함수를 실행해 리턴값을 보면 된다.
+
+import { Chain } from '@core/blockchain/chain'
+import { Wallet } from '@core/wallet/wallet'
+
+describe('chain function check', () => {
+    let ws : Chain = new Chain()
+
+    if('miningBlock check', () => {
+        ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff')
+        ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff')
+        ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff')
+
+
+        console.log(ws.getunspentTxOuts())
+
+        const balance = Wallet.getBalance('10187335f40af237c8fe4764bdabbf6f34c340ff', ws.getunspentTxOuts())
+        console.log(balance)
+    })
+})
+
+[
+    unspentTxOut {
+        txOutId: '4d6d905ad04b0fd5b6fe36a760addb95bb60aa8d8c771b725e12523b19a13021',
+        txOutIndex: 0,
+        account: '10187335f40af237c8fe4764bdabbf6f34c340ff',
+        amount: 17
+    },
+    unspentTxOut {
+        txOutId: '4d6d905ad04b0fd5b6fe36a760addb95bb60aa8d8c771b725e12523b19a13021',
+        txOutIndex: 0,
+        account: '10187335f40af237c8fe4764bdabbf6f34c340ff',
+        amount: 17
+    },
+    unspentTxOut {
+        txOutId: '4d6d905ad04b0fd5b6fe36a760addb95bb60aa8d8c771b725e12523b19a13021',
+        txOutIndex: 0,
+        account: '10187335f40af237c8fe4764bdabbf6f34c340ff',
+        amount: 17
+    }
+]
+
+// utxo 객체에 대한 정보와 잔고가 출력된다. 
+
+51
+
+여기까지 하고 unspentTxOuts 배열을 보면 txOutId가 전부 같다는 걸 확인할 수 있는데,
+
+이는 아직 TxIn을 생성할 때, 이를 생성하는 함수를 따로 만들어주지 않아서 
+
+계속 같은 값만을 대입해서 생기는 문제이다.
+
+이건 나중에 구현하자.
+
+
+

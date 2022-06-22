@@ -1,12 +1,32 @@
-import { DIFFICULTY_ADJUSTMENT_INTERVAL } from "@core/config";
+import { DIFFICULTY_ADJUSTMENT_INTERVAL, MINING_COMPENSATION } from "@core/config";
+import { Transaction } from "@core/transaction/transaction";
+import { TxIn } from "@core/transaction/txin";
+import { TxOut } from "@core/transaction/txout";
+import { unspentTxOut } from "@core/transaction/unspentTxOut";
+
 import { Block } from "./block";
 
 export class Chain {
     public blockchain : Block[]
+    private unspentTxOuts : unspentTxOut[]
 
     constructor() {
         this.blockchain = [Block.getGenesis()]
+        this.unspentTxOuts = []
     }
+
+    // utxo 관련 함수
+    public getunspentTxOuts() : unspentTxOut[] {
+        return this.unspentTxOuts
+        // 블록 체인 상의 utxo를 가져온다.
+    }
+
+    public appendUTXO (utxo : unspentTxOut[]) : void {
+        this.unspentTxOuts.push(...utxo)
+        // 새로 생긴 utxo를 기존 utxo에 추가한다
+    }
+
+    // 체인 정보 가져오는 함수
 
     public getChain() : Block[] {
         return this.blockchain
@@ -19,8 +39,20 @@ export class Chain {
     public getLatestBlock() : Block {
         return this.blockchain[ this.blockchain.length -1 ]
     }
+    
 
-    public addBlock (data : string[]) : Failable<Block, string> {
+    public miningBlock ( _account : string) {
+        const txin : ITxIn = new TxIn('', this.getLatestBlock().height + 1)
+        const txout : ITxOut = new TxOut( _account, MINING_COMPENSATION )
+
+        const transaction : Transaction = new Transaction([txin], [txout])
+        const utxo = transaction.createUTXO()
+        this.appendUTXO(utxo)
+
+        return this.addBlock([transaction])
+    }
+
+    public addBlock (data : ITransaction[]) : Failable<Block, string> {
         const previousBlock = this.getLatestBlock()
         const adjustmentBlock : Block = this.getAdjustmentBlock()
         const newBlock = Block.generateBlock(previousBlock, data, adjustmentBlock )
@@ -85,4 +117,5 @@ export class Chain {
 
         return { isError : false, value : undefined }
     }
+
 }

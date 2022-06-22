@@ -1,13 +1,13 @@
 import { WebSocket } from 'ws'
 import { Chain } from '@core/blockchain/chain'
 
-enum MessageType {
+export enum MessageType {
     latest_block = 0,
     received_latest_block = 1,
     fullChainReq = 2
 }
 
-interface Message {
+export interface Message {
     type : MessageType
     payload : any
 }

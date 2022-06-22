@@ -1,9 +1,10 @@
 import { BlockChain } from './src/core/index'
-import { P2PServer } from './src/serve/p2p'
+import { P2PServer, Message, MessageType } from './src/serve/p2p'
 import express from 'express'
 import axios from 'axios'
 
 import { Wallet, ReceivedTx } from '@core/wallet/wallet' 
+
 
 const nunjucks = require('nunjucks')
 
@@ -47,9 +48,13 @@ app.get('/getChain', (req, res) => {
 
 app.post("/mineBlock", (req, res) => {
     const { data } = req.body
-    const newBlock = bc.chain.addBlock(data)
+    const newBlock = ws.miningBlock(data)
     if(newBlock.isError == true ) {
         return res.status(500).send(newBlock.error)
+    }
+    const msg : Message = {
+        type : MessageType.latest_block,
+        payload:{}
     }
     res.send(newBlock.value)
 })

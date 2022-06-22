@@ -1,7 +1,8 @@
 import { Chain } from '@core/blockchain/chain'
+import { Wallet } from '@core/wallet/wallet'
 
 describe('Chain function Check', () => {
-    let node : Chain = new Chain()
+    let ws : Chain = new Chain()
 
     // it('getChain() check', () => {
     //     console.log(node.getChain())
@@ -18,9 +19,13 @@ describe('Chain function Check', () => {
     // })
 
     it('addBlock() check', () => {
-        for (let i = 1; i <=2; i++ ) {
-            node.addBlock([`Block #${i}`])
-        }
-        console.log(node.getChain())
+        ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff')
+        ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff')
+        ws.miningBlock('10187335f40af237c8fe4764bdabbf6f34c340ff')
+
+        console.log(ws.getunspentTxOuts())
+
+        const balance = Wallet.getBalance('10187335f40af237c8fe4764bdabbf6f34c340ff', ws.getunspentTxOuts())
+        console.log(balance)
     })
 })

@@ -61,4 +61,17 @@ export class Wallet {
         
         return { isError : false, value : undefined }
     }
+    
+    // 잔고 확인 함수
+
+    static getBalance ( _account : string, _unspentTxOuts : IUnspentTxOut[]) : number {
+        return _unspentTxOuts
+        .filter ( v=> {
+            return (v.account == _account)
+        })
+        .reduce((acc,utxo) => {
+            return (acc += utxo.amount)
+        },0 )
+    }
+
 }

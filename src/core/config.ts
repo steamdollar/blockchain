@@ -5,7 +5,7 @@ export const GENESIS : IBlock = {
     timestamp : 1231006506,
     previousHash : '0'.repeat(64),
     merkleRoot : '0'.repeat(64),
-    data : ['genesis Block'],
+    data : [],
     nonce : 0,
     difficulty : 0
 }
@@ -18,3 +18,5 @@ export const BLOCK_GENERATION_INTERVAL : number = 10
 
 export const UNIT : number = 60
 // block 하나가 생성되는데 걸리는 시간 ( 기준치 )
+
+export const MINING_COMPENSATION : number = 17
